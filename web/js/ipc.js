@@ -32,13 +32,29 @@ export function crearIPC({ serie, fuente, actualizado }) {
     }
   }
 
-  // Estimación para meses sin publicar: promedio geométrico de los últimos 3.
-  function estimar(monto, base, fin) {
-    const prom = Math.pow(serie[ultimo] / serie[sumarMeses(ultimo, -3)], 1 / 3);
+  // Para meses sin publicar, el índice se proyecta con el promedio geométrico de los
+  // últimos 3 meses.
+  const ritmo = Math.pow(serie[ultimo] / serie[sumarMeses(ultimo, -3)], 1 / 3);
+  function indice(p) {
+    if (tiene(p)) return serie[p];
     let faltan = 0;
-    for (let p = ultimo; p < fin; p = sumarMeses(p, 1)) faltan++;
-    return actualizar(monto, base, ultimo) * Math.pow(prom, faltan);
+    for (let q = ultimo; q < p; q = sumarMeses(q, 1)) faltan++;
+    return serie[ultimo] * Math.pow(ritmo, faltan);
+  }
+  const estimar = (monto, base, fin) => monto * indice(fin) / indice(base);
+
+  // Los próximos `cuantos` ajustes después de `inicio`, marcando cuáles son estimados.
+  function proyectar(monto, inicio, frecuencia, rezago, cuantos) {
+    const lista = [];
+    for (let i = 0; i < cuantos; i++) {
+      const proximo = sumarMeses(inicio, frecuencia);
+      const base = sumarMeses(inicio, -rezago), fin = sumarMeses(proximo, -rezago);
+      monto = estimar(monto, base, fin);
+      lista.push({ mes: proximo, monto, estimado: !tiene(fin) });
+      inicio = proximo;
+    }
+    return lista;
   }
 
-  return { serie, fuente, actualizado, periodos, primero, ultimo, tiene, variacion, actualizar, ajustes, estimar };
+  return { serie, fuente, actualizado, periodos, primero, ultimo, tiene, variacion, actualizar, ajustes, estimar, proyectar };
 }
