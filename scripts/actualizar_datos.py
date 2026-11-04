@@ -49,18 +49,24 @@ def bajar_serie() -> tuple[dict[str, float], str]:
     return validar_serie(desde_datos_gob()), "datos.gob.ar (INDEC)"
 
 
-def largo_actual() -> int:
+def leer_actual() -> dict:
     try:
-        return len(json.loads(SALIDA.read_text(encoding="utf-8"))["serie"])
-    except (OSError, ValueError, KeyError):
-        return 0
+        return json.loads(SALIDA.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 def main():
     load_dotenv()
     serie, fuente = bajar_serie()
-    if len(serie) < largo_actual():
-        sys.exit(f"{fuente} trajo {len(serie)} meses y el archivo ya tiene {largo_actual()}; no lo reemplazo.")
+    actual = leer_actual()
+    serie_actual = actual.get("serie", {})
+    if len(serie) < len(serie_actual):
+        sys.exit(f"{fuente} trajo {len(serie)} meses y el archivo ya tiene {len(serie_actual)}; no lo reemplazo.")
+    # Sin datos nuevos no se toca el archivo, así el chequeo diario no genera commits vacíos.
+    if serie == serie_actual and fuente == actual.get("fuente"):
+        print(f"{fuente}: sin datos nuevos (último {max(serie)})")
+        return
     datos = {
         "fuente": fuente,
         "actualizado": datetime.now(timezone.utc).isoformat(timespec="seconds"),

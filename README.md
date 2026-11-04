@@ -62,6 +62,20 @@ El token nunca llega a la página: solo lo usa el script.
 Nuevo monto = monto × IPC(mes del ajuste − 2) / IPC(mes de inicio − 2). El rezago de 2 meses es
 porque el IPC de un mes sale a mediados del siguiente; en la página se puede cambiar a 1 mes.
 
+## Actualización automática
+
+`.github/workflows/actualizar-ipc.yml` corre todos los días a las 18:30 (hora argentina) en
+GitHub Actions. Si el INDEC publicó un IPC nuevo, actualiza `web/data/ipc.json` y lo sube con
+un commit. También se puede correr a mano desde la pestaña Actions ("Run workflow").
+
+Necesita el token como secreto del repositorio:
+
+```bash
+gh secret set INDEC_TOKEN
+```
+
+(pide el valor y lo guarda cifrado en GitHub; no queda en el código).
+
 ## Publicar
 
 Alcanza con subir la carpeta `web/` a GitHub Pages, Netlify o Cloudflare Pages y correr
