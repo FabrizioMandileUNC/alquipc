@@ -11,3 +11,13 @@ __pycache__/
 .claude/
 .vscode/
 .idea/
+
+# Variantes de .env y archivos auxiliares de SQLite, tests y logs
+.env.*
+!.env.example
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite*
+.pytest_cache/
+*.log
