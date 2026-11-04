@@ -1,0 +1,34 @@
+# Publica la carpeta web/ en GitHub Pages. Corre con cada cambio en web/ y cuando
+# "Actualizar IPC" sube datos nuevos (los commits del bot no disparan este workflow solos).
+name: Publicar sitio
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/publicar.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4

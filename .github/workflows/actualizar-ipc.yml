@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: actualizar-ipc
@@ -46,3 +47,6 @@ jobs:
           git add web/data/ipc.json
           git commit -m "[chore] update ipc data to ${ultimo}"
           git push
+          gh workflow run publicar.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
