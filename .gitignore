@@ -1,4 +1,13 @@
+# Secretos y datos locales
 .env
 *.db
+
+# Entorno de Python
 .venv/
 __pycache__/
+*.pyc
+
+# Configuración local de herramientas
+.claude/
+.vscode/
+.idea/
