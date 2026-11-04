@@ -5,7 +5,7 @@ import httpx
 BASE_URL = "https://api.indec.gob.ar/v1"
 
 # Filtros PostgREST para la serie del índice nivel general, total nacional.
-# Si la API cambia los nombres, correr `python explorar.py` y ajustar acá.
+# Si la API cambia los nombres, correr `python -m scripts.explorar` y ajustar acá.
 FILTROS_IPC_GENERAL = {
     "descripcion": "ilike.*nivel general*",
     "region": "ilike.*nacional*",

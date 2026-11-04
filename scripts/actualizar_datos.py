@@ -1,9 +1,9 @@
-"""Baja la serie del IPC y la escribe en web/data/ipc.js para la página.
+"""Baja la serie del IPC y la escribe en web/data/ipc.json para la página.
 
 Usa la API del INDEC si hay INDEC_TOKEN en el entorno (o en .env); si no, la serie
 pública de datos.gob.ar, que publica el mismo índice con algunas semanas de demora.
 
-Uso: python actualizar_datos.py
+Uso: python -m scripts.actualizar_datos
 """
 
 import asyncio
@@ -15,9 +15,9 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-from indec import IndecClient
+from alquipc.indec import IndecClient
 
-SALIDA = Path(__file__).parent / "web" / "data" / "ipc.js"
+SALIDA = Path(__file__).resolve().parents[1] / "web" / "data" / "ipc.json"
 SERIE_DATOS_GOB = "148.3_INIVELNAL_DICI_M_26"  # IPC nivel general nacional, base dic 2016
 
 
@@ -49,7 +49,7 @@ def main():
         "serie": dict(sorted(serie.items())),
     }
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
-    SALIDA.write_text("window.IPC = " + json.dumps(datos, ensure_ascii=False) + ";\n", encoding="utf-8")
+    SALIDA.write_text(json.dumps(datos, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"{fuente}: {len(serie)} meses, último {max(serie)} -> {SALIDA}")
 
 

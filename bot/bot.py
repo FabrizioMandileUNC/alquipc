@@ -9,9 +9,9 @@ from telegram.error import Forbidden
 from telegram.ext import (Application, CommandHandler, ContextTypes, ConversationHandler,
                           MessageHandler, filters)
 
-import calculo as c
-from db import Base
-from indec import IndecClient, IndecError
+from alquipc import calculo as c
+from bot.db import Base
+from alquipc.indec import IndecClient, IndecError
 
 load_dotenv()
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)

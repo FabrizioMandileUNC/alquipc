@@ -1,6 +1,6 @@
 """Muestra qué valores trae /ipc_nacional, para verificar los filtros de indec.py.
 
-Uso: python explorar.py
+Uso: python -m scripts.explorar
 """
 
 import asyncio
@@ -9,7 +9,7 @@ from collections import Counter
 
 from dotenv import load_dotenv
 
-from indec import IndecClient
+from alquipc.indec import IndecClient
 
 
 async def main():
@@ -30,4 +30,5 @@ async def main():
     await cliente.cerrar()
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,6 +1,6 @@
 import unittest
 
-import calculo as c
+from alquipc import calculo as c
 
 
 class TestCalculo(unittest.TestCase):
