@@ -15,6 +15,8 @@ web/                    Página estática (lo que se publica)
     formato.js          Pesos, porcentajes y parseo de montos
     dom.js              Ayudas de DOM e inputs de monto
     selectores.js       Paneles de mes, frecuencia y opciones
+    estado.js           Datos de la calculadora en la URL y en el navegador
+    anuncios.js         Línea para lectores de pantalla
     calculadora.js      Sección "¿cuánto sube tu alquiler?"
     inflacion.js        Resumen y gráfico de inflación
     pesos-de-hoy.js     Sección "Pesos de hoy"
