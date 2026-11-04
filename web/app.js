@@ -24,6 +24,8 @@
   const nombre = (p) => mesDe(p) + " de " + p.slice(0, 4);
   const corto = (p) => mesDe(p).slice(0, 3) + " " + p.slice(2, 4);
   const variacion = (p) => serie[p] / serie[sumarMeses(p, -1)] - 1;
+  const textoMeses = (n) => (n === 1 ? "mes" : n + " meses");
+  const cantidadMeses = (n) => n + (n === 1 ? " mes" : " meses");
 
   function parsearMonto(texto) {
     const n = Number(texto.replace(/[^\d,]/g, "").replace(",", "."));
@@ -64,58 +66,186 @@
     return e;
   }
 
-  // --- Campos que se ajustan al ancho de su contenido ------------------------
+  // --- Montos: el input se ajusta al ancho de lo escrito ---------------------
   const medidor = el("span", { "aria-hidden": "true" });
   medidor.style.cssText = "position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0";
   document.body.append(medidor);
 
-  function ajustarAncho(campo) {
-    const cs = getComputedStyle(campo);
+  function ajustarAncho(input) {
+    const cs = getComputedStyle(input);
     for (const prop of ["fontFamily", "fontSize", "fontWeight", "fontStretch", "letterSpacing", "fontVariantNumeric"]) {
       medidor.style[prop] = cs[prop];
     }
-    medidor.textContent = campo.tagName === "SELECT"
-      ? campo.options[campo.selectedIndex].text
-      : (campo.value || campo.placeholder);
-    campo.style.width = Math.ceil(medidor.getBoundingClientRect().width) + 2 + "px";
+    medidor.textContent = input.value || input.placeholder;
+    input.style.width = Math.ceil(medidor.getBoundingClientRect().width) + 2 + "px";
   }
-  const campos = () => document.querySelectorAll(".campo input, select.campo");
-  const ajustarTodos = () => campos().forEach(ajustarAncho);
+  const ajustarTodos = () => document.querySelectorAll(".campo input").forEach(ajustarAncho);
 
-  function llenarFecha(selMes, selAnio, hastaAnio, valor) {
-    MESES.forEach((m, i) => selMes.append(el("option", { value: String(i + 1).padStart(2, "0") }, m)));
-    for (let a = 2017; a <= hastaAnio; a++) selAnio.append(el("option", { value: String(a) }, String(a)));
-    selMes.value = valor.slice(4);
-    selAnio.value = valor.slice(0, 4);
+  function campoMonto(input, alCambiar) {
+    input.addEventListener("input", () => {
+      const n = parsearMonto(input.value);
+      input.value = isNaN(n) ? "" : Math.round(n).toLocaleString("es-AR");
+      ajustarAncho(input);
+      alCambiar();
+    });
   }
 
-  function formatearMiles(input) {
-    const n = parsearMonto(input.value);
-    input.value = isNaN(n) ? "" : Math.round(n).toLocaleString("es-AR");
+  // --- Panel flotante compartido por los campos que son botones ---------------
+  const panel = el("div", { class: "panel", role: "dialog", hidden: "" });
+  document.body.append(panel);
+  let duenio = null;
+
+  function abrirPanel(boton, titulo, pintar) {
+    if (duenio === boton) return cerrarPanel(true);
+    cerrarPanel(false);
+    duenio = boton;
+    panel.setAttribute("aria-label", titulo);
+    boton.setAttribute("aria-expanded", "true");
+    panel.hidden = false;
+    pintar();
+    const r = boton.getBoundingClientRect();
+    const ancho = panel.offsetWidth;
+    const izq = Math.min(Math.max(16, r.left), document.documentElement.clientWidth - ancho - 16);
+    panel.style.left = izq + scrollX + "px";
+    panel.style.top = r.bottom + scrollY + 8 + "px";
+    (panel.querySelector('[aria-pressed="true"]') || panel.querySelector("button:not(:disabled)")).focus();
+  }
+
+  function cerrarPanel(devolverFoco) {
+    if (!duenio) return;
+    const b = duenio;
+    duenio = null;
+    panel.hidden = true;
+    b.setAttribute("aria-expanded", "false");
+    if (devolverFoco) b.focus();
+  }
+
+  document.addEventListener("pointerdown", (ev) => {
+    if (duenio && !panel.contains(ev.target) && !duenio.contains(ev.target)) cerrarPanel(false);
+  });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") cerrarPanel(true); });
+  window.addEventListener("resize", () => cerrarPanel(false));
+
+  function prepararBoton(boton) {
+    boton.setAttribute("aria-haspopup", "dialog");
+    boton.setAttribute("aria-expanded", "false");
+  }
+
+  // Mes y año: grilla de meses con navegación por año.
+  function selectorMes(boton, { valor, min, max, etiqueta, alElegir }) {
+    prepararBoton(boton);
+    const mostrar = () => {
+      boton.textContent = nombre(valor);
+      boton.setAttribute("aria-label", etiqueta + ": " + nombre(valor));
+    };
+
+    function pintar(anio) {
+      const prev = el("button", { type: "button", class: "panel__flecha", "aria-label": "Año anterior" }, "‹");
+      const next = el("button", { type: "button", class: "panel__flecha", "aria-label": "Año siguiente" }, "›");
+      prev.disabled = anio <= Number(min.slice(0, 4));
+      next.disabled = anio >= Number(max.slice(0, 4));
+      prev.addEventListener("click", () => { pintar(anio - 1); panel.querySelector(".panel__flecha").focus(); });
+      next.addEventListener("click", () => { pintar(anio + 1); panel.querySelectorAll(".panel__flecha")[1].focus(); });
+
+      const grilla = el("div", { class: "panel__meses" });
+      MESES.forEach((m, i) => {
+        const p = anio + String(i + 1).padStart(2, "0");
+        const b = el("button", { type: "button", "aria-pressed": String(p === valor), "aria-label": nombre(p) }, m.slice(0, 3));
+        b.disabled = p < min || p > max;
+        b.addEventListener("click", () => { valor = p; mostrar(); cerrarPanel(true); alElegir(p); });
+        grilla.append(b);
+      });
+      panel.replaceChildren(el("div", { class: "panel__anio" }, prev, el("b", {}, String(anio)), next), grilla);
+    }
+
+    boton.addEventListener("click", () => abrirPanel(boton, etiqueta, () => pintar(Number(valor.slice(0, 4)))));
+    mostrar();
+  }
+
+  // Cada cuántos meses ajusta: valores comunes y un contador para el resto.
+  function selectorFrecuencia(boton, { valor, alElegir }) {
+    prepararBoton(boton);
+    const MAX = 24;
+    const mostrar = () => {
+      boton.textContent = textoMeses(valor);
+      boton.setAttribute("aria-label", "Frecuencia de ajuste: cada " + textoMeses(valor));
+    };
+    const elegir = (n) => { valor = n; mostrar(); alElegir(n); };
+
+    function pintar() {
+      const opciones = el("div", { class: "panel__opciones" });
+      for (const n of [1, 2, 3, 4, 6, 12]) {
+        const b = el("button", { type: "button", "aria-pressed": String(n === valor) }, cantidadMeses(n));
+        b.addEventListener("click", () => { elegir(n); cerrarPanel(true); });
+        opciones.append(b);
+      }
+      const menos = el("button", { type: "button", "aria-label": "Un mes menos" }, "−");
+      const mas = el("button", { type: "button", "aria-label": "Un mes más" }, "+");
+      const cuenta = el("output", { "aria-live": "polite" }, cantidadMeses(valor));
+      const paso = (d) => {
+        const n = Math.min(MAX, Math.max(1, valor + d));
+        if (n === valor) return;
+        elegir(n);
+        cuenta.textContent = cantidadMeses(n);
+        opciones.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String([1, 2, 3, 4, 6, 12][i] === n)));
+        menos.disabled = n === 1;
+        mas.disabled = n === MAX;
+      };
+      menos.disabled = valor === 1;
+      mas.disabled = valor === MAX;
+      menos.addEventListener("click", () => paso(-1));
+      mas.addEventListener("click", () => paso(1));
+      panel.replaceChildren(
+        el("p", { class: "panel__titulo" }, "Cada cuánto ajusta el contrato"),
+        opciones,
+        el("div", { class: "panel__otro" }, el("span", {}, "Otra cantidad"),
+          el("div", { class: "panel__stepper" }, menos, cuenta, mas)),
+      );
+    }
+
+    boton.addEventListener("click", () => abrirPanel(boton, "Frecuencia de ajuste", pintar));
+    mostrar();
+  }
+
+  // Lista de opciones con una explicación corta debajo de cada una.
+  function selectorOpciones(boton, { valor, titulo, opciones, alElegir }) {
+    prepararBoton(boton);
+    const actual = () => opciones.find((o) => o.valor === valor);
+    const mostrar = () => { boton.textContent = actual().texto; };
+
+    function pintar() {
+      const lista = el("div", { class: "panel__lista" });
+      for (const o of opciones) {
+        const b = el("button", { type: "button", "aria-pressed": String(o.valor === valor) }, o.texto, el("small", {}, o.ayuda));
+        b.addEventListener("click", () => { valor = o.valor; mostrar(); cerrarPanel(true); alElegir(o.valor); });
+        lista.append(b);
+      }
+      panel.replaceChildren(el("p", { class: "panel__titulo" }, titulo), lista);
+    }
+
+    boton.addEventListener("click", () => abrirPanel(boton, titulo, pintar));
+    mostrar();
   }
 
   // --- Calculadora de alquiler -----------------------------------------------
-  const monto = $("#monto"), mes = $("#mes"), anio = $("#anio");
-  const frecuencia = $("#frecuencia"), rezago = $("#rezago");
+  const monto = $("#monto");
   const salida = $("#resultado");
-
   // Por defecto, un inicio cuyo próximo ajuste trimestral ya se puede calcular.
-  llenarFecha(mes, anio, Number(sumarMeses(ultimo, 3).slice(0, 4)), sumarMeses(ultimo, -1));
+  const estado = { inicio: sumarMeses(ultimo, -1), frecuencia: 3, rezago: 2 };
 
   function calcular() {
     const m = parsearMonto(monto.value);
-    const inicio = anio.value + mes.value;
-    const rz = Number(rezago.value);
+    const { inicio, frecuencia, rezago } = estado;
     salida.replaceChildren();
 
     if (isNaN(m)) {
       salida.append(el("p", { class: "resultado__vacio" }, "Escribí cuánto pagás y acá aparece el nuevo monto."));
       return;
     }
-    const base = sumarMeses(inicio, -rz);
+    const base = sumarMeses(inicio, -rezago);
     if (base < primero) {
       salida.append(el("p", { class: "resultado__error" },
-        "La serie del IPC empieza en " + nombre(primero) + ". Elegí " + nombre(sumarMeses(primero, rz)) + " o una fecha posterior."));
+        "La serie del IPC empieza en " + nombre(primero) + ". Elegí " + nombre(sumarMeses(primero, rezago)) + " o una fecha posterior."));
       return;
     }
     if (base > ultimo) {
@@ -124,7 +254,7 @@
       return;
     }
 
-    const r = ajustes(m, inicio, Number(frecuencia.value), rz);
+    const r = ajustes(m, inicio, frecuencia, rezago);
     let mensaje;
 
     if (r.lista.length) {
@@ -171,8 +301,25 @@
     salida.append(el("div", { class: "acciones" }, wa, copiar));
   }
 
-  monto.addEventListener("input", () => { formatearMiles(monto); ajustarAncho(monto); calcular(); });
-  for (const s of [mes, anio, frecuencia, rezago]) s.addEventListener("change", () => { ajustarAncho(s); calcular(); });
+  campoMonto(monto, calcular);
+  selectorMes($("#inicio"), {
+    valor: estado.inicio, min: sumarMeses(primero, 1), max: sumarMeses(ultimo, 3),
+    etiqueta: "Mes desde el que pagás ese monto",
+    alElegir: (p) => { estado.inicio = p; calcular(); },
+  });
+  selectorFrecuencia($("#frecuencia"), {
+    valor: estado.frecuencia,
+    alElegir: (n) => { estado.frecuencia = n; calcular(); },
+  });
+  selectorOpciones($("#rezago"), {
+    valor: estado.rezago,
+    titulo: "Qué IPC toma tu contrato",
+    opciones: [
+      { valor: 2, texto: "dos meses", ayuda: "Lo más común: al ajustar, el último IPC publicado es el de dos meses antes." },
+      { valor: 1, texto: "un mes", ayuda: "Si tu contrato ajusta después de mitad de mes con el IPC recién salido." },
+    ],
+    alElegir: (v) => { estado.rezago = v; calcular(); },
+  });
   $("#form-alquiler").addEventListener("submit", (ev) => ev.preventDefault());
 
   // --- Resumen y gráfico -------------------------------------------------------
@@ -202,25 +349,21 @@
   leer(ultimos.length - 1);
 
   // --- Pesos de hoy ------------------------------------------------------------
-  const monto2 = $("#monto2"), mes2 = $("#mes2"), anio2 = $("#anio2");
-  const salida2 = $("#resultado2"), detalle2 = $("#detalle2");
-  llenarFecha(mes2, anio2, Number(ultimo.slice(0, 4)), sumarMeses(ultimo, -24));
+  const monto2 = $("#monto2"), salida2 = $("#resultado2"), detalle2 = $("#detalle2");
+  let desde2 = sumarMeses(ultimo, -24);
 
   function actualizarPesos() {
     const m = parsearMonto(monto2.value);
-    const desde = anio2.value + mes2.value;
     if (isNaN(m)) { salida2.textContent = "…"; detalle2.textContent = ""; return; }
-    if (!(desde in serie)) {
-      salida2.textContent = "…";
-      detalle2.textContent = "Elegí un mes entre " + nombre(primero) + " y " + nombre(ultimo) + ".";
-      return;
-    }
-    const hoy = m * serie[ultimo] / serie[desde];
+    const hoy = m * serie[ultimo] / serie[desde2];
     salida2.textContent = pesos.format(hoy);
     detalle2.textContent = "En pesos de " + nombre(ultimo) + ". Los precios subieron " + pct(hoy / m - 1) + " en ese período.";
   }
-  monto2.addEventListener("input", () => { formatearMiles(monto2); ajustarAncho(monto2); actualizarPesos(); });
-  for (const s of [mes2, anio2]) s.addEventListener("change", () => { ajustarAncho(s); actualizarPesos(); });
+  campoMonto(monto2, actualizarPesos);
+  selectorMes($("#desde2"), {
+    valor: desde2, min: primero, max: ultimo, etiqueta: "Mes del monto original",
+    alElegir: (p) => { desde2 = p; actualizarPesos(); },
+  });
   $("#form-pesos").addEventListener("submit", (ev) => ev.preventDefault());
 
   // --- Pie y arranque ----------------------------------------------------------

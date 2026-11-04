@@ -34,21 +34,16 @@
         <form id="form-alquiler" class="frase" autocomplete="off">
           <p>
             Pago <span class="campo">$<input id="monto" inputmode="numeric" placeholder="450.000" aria-label="Cuánto pagás hoy"></span> por mes
-            desde <select id="mes" class="campo" aria-label="Mes desde el que pagás ese monto"></select>
-            de <select id="anio" class="campo" aria-label="Año"></select>
-            y el contrato ajusta cada <select id="frecuencia" class="campo" aria-label="Cada cuántos meses ajusta">
-              <option value="2">2</option><option value="3" selected>3</option><option value="4">4</option>
-              <option value="6">6</option><option value="12">12</option>
-            </select> meses.
+            desde <button type="button" id="inicio" class="campo"></button>
+            y el contrato ajusta cada <button type="button" id="frecuencia" class="campo"></button>.
           </p>
         </form>
 
         <div id="resultado" class="resultado" aria-live="polite"></div>
 
         <p class="nota">
-          Se usa el IPC de <select id="rezago" class="campo campo--chico" aria-label="Desfasaje del índice">
-            <option value="2" selected>dos meses</option><option value="1">un mes</option>
-          </select> antes de cada ajuste, como dice la mayoría de los contratos.
+          Se usa el IPC de <button type="button" id="rezago" class="campo campo--chico"></button>
+          antes de cada ajuste, como dice la mayoría de los contratos.
         </p>
       </div>
     </section>
@@ -71,8 +66,7 @@
         <form id="form-pesos" class="frase frase--chica" autocomplete="off">
           <p>
             <span class="campo">$<input id="monto2" inputmode="numeric" placeholder="100.000" aria-label="Monto"></span>
-            de <select id="mes2" class="campo" aria-label="Mes"></select>
-            de <select id="anio2" class="campo" aria-label="Año"></select>
+            de <button type="button" id="desde2" class="campo"></button>
             son hoy <output id="resultado2" class="salida">…</output>
           </p>
         </form>
@@ -107,7 +101,7 @@
           </details>
           <details>
             <summary>Mi contrato dice otra cosa.</summary>
-            <p>Desde fines de 2023 cada contrato puede pactar su propio índice. Si el tuyo usa el IPC de un mes antes, cambialo debajo de la calculadora. Si usa otro índice, como el ICL o Casa Propia, este cálculo no te sirve.</p>
+            <p>Desde fines de 2023 cada contrato puede pactar su propio índice. Si el tuyo ajusta cada otra cantidad de meses o toma el IPC de un mes antes, tocá esas palabras en la calculadora y cambialas. Si usa otro índice, como el ICL o Casa Propia, este cálculo no te sirve.</p>
           </details>
           <details>
             <summary>¿Qué pasa si todavía no salió el dato?</summary>
