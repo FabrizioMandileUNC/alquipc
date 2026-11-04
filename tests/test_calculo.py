@@ -20,6 +20,33 @@ class TestCalculo(unittest.TestCase):
         with self.assertRaises(ValueError):
             c.parsear_periodo("13/2026")
 
+    def test_parsear_monto_separadores(self):
+        casos = {
+            "450000": 450000, "450.000": 450000, "$ 450.000": 450000, "1.234.567": 1234567,
+            "450.000,50": 450000.5, "450000.50": 450000.5, "450000,5": 450000.5,
+            "1,234,567": 1234567, "1,234,567.89": 1234567.89, "450,000": 450000,
+        }
+        for texto, esperado in casos.items():
+            with self.subTest(texto=texto):
+                self.assertAlmostEqual(c.parsear_monto(texto), esperado)
+
+    def test_parsear_monto_rechaza_basura(self):
+        for texto in ["nan", "inf", "1e5", "-5", "0", "", "abc", "1" * 15]:
+            with self.subTest(texto=texto), self.assertRaises(ValueError):
+                c.parsear_monto(texto)
+
+    def test_validar_serie(self):
+        self.assertEqual(c.validar_serie(self.SERIE), self.SERIE)
+        for mala in [{}, {"202613": 100.0}, {"2026-01": 100.0}, {"202601": 0.0}, {"202601": float("nan")}]:
+            with self.subTest(serie=mala), self.assertRaises(ValueError):
+                c.validar_serie(mala)
+
+    def test_variacion_y_meses(self):
+        self.assertEqual(c.formatear_variacion(0.019), "+1,9%")
+        self.assertEqual(c.formatear_variacion(-0.005), "-0,5%")
+        self.assertEqual(c.texto_meses(1), "mes")
+        self.assertEqual(c.texto_meses(3), "3 meses")
+
     def test_formatos(self):
         self.assertEqual(c.formatear_monto(1234567.4), "$ 1.234.567")
         self.assertEqual(c.formatear_pct(0.019), "1,9%")

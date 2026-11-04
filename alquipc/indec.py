@@ -2,6 +2,8 @@
 
 import httpx
 
+from alquipc.calculo import validar_serie
+
 BASE_URL = "https://api.indec.gob.ar/v1"
 
 # Filtros PostgREST para la serie del índice nivel general, total nacional.
@@ -41,12 +43,14 @@ class IndecClient:
         for fila in filas:
             if fila["valor"] is None:
                 continue
-            if fila["periodo"] in serie:
-                raise IndecError(f"Los filtros del IPC traen más de una fila para {fila['periodo']}")
-            serie[fila["periodo"]] = float(fila["valor"])
-        if not serie:
-            raise IndecError("Los filtros del IPC no trajeron datos")
-        return serie
+            periodo = str(fila["periodo"])
+            if periodo in serie:
+                raise IndecError(f"Los filtros del IPC traen más de una fila para {periodo}")
+            serie[periodo] = float(fila["valor"])
+        try:
+            return validar_serie(serie)
+        except ValueError as e:
+            raise IndecError(str(e)) from e
 
     async def cerrar(self):
         await self._http.aclose()

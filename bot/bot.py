@@ -3,15 +3,16 @@
 import logging
 import os
 
+import httpx
 from dotenv import load_dotenv
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.error import Forbidden
-from telegram.ext import (Application, CommandHandler, ContextTypes, ConversationHandler,
-                          MessageHandler, filters)
+from telegram.error import Forbidden, TelegramError
+from telegram.ext import (AIORateLimiter, Application, CommandHandler, ContextTypes,
+                          ConversationHandler, MessageHandler, filters)
 
 from alquipc import calculo as c
-from bot.db import Base
 from alquipc.indec import IndecClient, IndecError
+from bot.db import Base
 
 load_dotenv()
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
@@ -23,6 +24,9 @@ db = Base(os.getenv("DB_PATH", "bot.db"))
 indec = IndecClient(os.environ["INDEC_TOKEN"])
 
 MONTO, INICIO, FRECUENCIA = range(3)
+MAX_CONTRATOS = 10
+# Los contratos se guardan por chat: en un grupo cualquiera podría borrarlos.
+PRIVADO = filters.ChatType.PRIVATE
 
 AYUDA = (
     "Te aviso cada vez que el INDEC publica el IPC y te calculo cuánto sube tu alquiler.\n\n"
@@ -42,7 +46,7 @@ def serie(ctx: ContextTypes.DEFAULT_TYPE) -> dict[str, float] | None:
 def describir_contrato(fila, serie_ipc: dict[str, float] | None) -> str:
     proximo = c.sumar_meses(fila["inicio"], fila["frecuencia"])
     texto = (f"#{fila['id']}: {c.formatear_monto(fila['monto'])} desde {c.nombre_periodo(fila['inicio'])}, "
-             f"ajuste cada {fila['frecuencia']} meses.\n"
+             f"ajuste cada {c.texto_meses(fila['frecuencia'])}.\n"
              f"   Próximo ajuste: {c.nombre_periodo(proximo)}")
     dato_necesario = c.sumar_meses(proximo, -c.REZAGO)
     if serie_ipc and dato_necesario not in serie_ipc:
@@ -110,6 +114,10 @@ async def borrar(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def nuevo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     db.suscribir(update.effective_chat.id)
+    if len(db.contratos(update.effective_chat.id)) >= MAX_CONTRATOS:
+        await update.message.reply_text(
+            f"Ya tenés {MAX_CONTRATOS} alquileres cargados. Borrá alguno con /borrar para sumar otro.")
+        return ConversationHandler.END
     await update.message.reply_text("¿Cuánto pagás hoy de alquiler? (ej: 450000)")
     return MONTO
 
@@ -126,10 +134,18 @@ async def recibir_monto(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def recibir_inicio(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     try:
-        ctx.user_data["inicio"] = c.parsear_periodo(update.message.text)
+        inicio = c.parsear_periodo(update.message.text)
     except ValueError:
         await update.message.reply_text("Mandalo como MM/AAAA, por ejemplo 05/2026.")
         return INICIO
+    s = serie(ctx)
+    if s and c.sumar_meses(inicio, -c.REZAGO) < min(s):
+        primero = c.sumar_meses(min(s), c.REZAGO)
+        await update.message.reply_text(
+            f"La serie del IPC arranca en {c.nombre_periodo(min(s))}, así que el mes más viejo que "
+            f"puedo usar es {c.nombre_periodo(primero)}. Mandá esa fecha o una posterior.")
+        return INICIO
+    ctx.user_data["inicio"] = inicio
     teclado = ReplyKeyboardMarkup([["3", "4", "6", "12"]], one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text("¿Cada cuántos meses se ajusta?", reply_markup=teclado)
     return FRECUENCIA
@@ -170,17 +186,20 @@ async def cancelar(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 # --- Chequeo periódico del INDEC --------------------------------------------
 
 async def enviar(ctx: ContextTypes.DEFAULT_TYPE, chat_id: int, texto: str):
+    # Un chat que falla no puede cortar el aviso al resto.
     try:
         await ctx.bot.send_message(chat_id, texto)
     except Forbidden:
         log.info("El chat %s bloqueó el bot, lo doy de baja", chat_id)
         db.desuscribir(chat_id)
+    except TelegramError as e:
+        log.warning("No pude escribirle al chat %s: %s", chat_id, e)
 
 
 async def chequear_ipc(ctx: ContextTypes.DEFAULT_TYPE):
     try:
         s = await indec.serie_ipc()
-    except (IndecError, OSError) as e:
+    except (IndecError, httpx.HTTPError, ValueError, KeyError) as e:
         log.warning("No pude leer el IPC: %s", e)
         return
     ctx.bot_data["serie"] = s
@@ -192,7 +211,6 @@ async def chequear_ipc(ctx: ContextTypes.DEFAULT_TYPE):
     if ultimo <= avisado:
         return
     log.info("Nuevo IPC: %s", ultimo)
-    db.guardar_estado("ultimo_periodo", ultimo)
 
     for chat_id in db.suscriptores():
         await enviar(ctx, chat_id, "🆕 Salió el IPC\n" + c.resumen_ipc(s))
@@ -206,7 +224,11 @@ async def chequear_ipc(ctx: ContextTypes.DEFAULT_TYPE):
         await enviar(ctx, fila["chat_id"],
                      f"🏠 Alquiler #{fila['id']}: desde {c.nombre_periodo(mes)} pasa de "
                      f"{c.formatear_monto(fila['monto'])} a {c.formatear_monto(monto)} "
-                     f"(+{c.formatear_pct(monto / fila['monto'] - 1)}).")
+                     f"({c.formatear_variacion(monto / fila['monto'] - 1)}).")
+
+    # Recién ahora: si algo se cortó antes, el próximo chequeo vuelve a intentar.
+    # Los contratos ya ajustados no se repiten porque cambió su mes de inicio.
+    db.guardar_estado("ultimo_periodo", ultimo)
 
 
 async def al_cerrar(app: Application):
@@ -214,19 +236,23 @@ async def al_cerrar(app: Application):
 
 
 def main():
-    app = Application.builder().token(os.environ["TELEGRAM_TOKEN"]).post_shutdown(al_cerrar).build()
+    app = (Application.builder().token(os.environ["TELEGRAM_TOKEN"])
+           .rate_limiter(AIORateLimiter()).post_shutdown(al_cerrar).build())
+    texto = PRIVADO & filters.TEXT & ~filters.COMMAND
     app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("nuevo", nuevo)],
+        entry_points=[CommandHandler("nuevo", nuevo, filters=PRIVADO)],
         states={
-            MONTO: [MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_monto)],
-            INICIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_inicio)],
-            FRECUENCIA: [MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_frecuencia)],
+            MONTO: [MessageHandler(texto, recibir_monto)],
+            INICIO: [MessageHandler(texto, recibir_inicio)],
+            FRECUENCIA: [MessageHandler(texto, recibir_frecuencia)],
         },
-        fallbacks=[CommandHandler("cancelar", cancelar)],
+        fallbacks=[CommandHandler("cancelar", cancelar, filters=PRIVADO)],
+        allow_reentry=True,
+        conversation_timeout=15 * 60,
     ))
     for nombre, handler in [("start", start), ("help", start), ("baja", baja), ("ipc", ipc),
                             ("actualizar", actualizar), ("alquileres", alquileres), ("borrar", borrar)]:
-        app.add_handler(CommandHandler(nombre, handler))
+        app.add_handler(CommandHandler(nombre, handler, filters=PRIVADO))
     app.job_queue.run_repeating(chequear_ipc, interval=INTERVALO_CHEQUEO, first=1)
     app.run_polling()
 
