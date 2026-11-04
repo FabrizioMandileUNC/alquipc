@@ -62,12 +62,13 @@
     <section class="bloque" id="pesos-de-hoy">
       <div class="wrap">
         <h2>Pesos de hoy</h2>
-        <p class="resumen">Para saber cuánto vale hoy un depósito de garantía, una deuda o un precio viejo.</p>
+        <p class="resumen">Para saber cuánto vale hoy un depósito de garantía, una deuda o un precio viejo. También funciona entre dos meses cualquiera.</p>
         <form id="form-pesos" class="frase frase--chica" autocomplete="off">
           <p>
             <span class="campo">$<input id="monto2" inputmode="numeric" placeholder="100.000" aria-label="Monto"></span>
             de <button type="button" id="desde2" class="campo"></button>
-            son hoy <output id="resultado2" class="salida">…</output>
+            valen <output id="resultado2" class="salida">…</output>
+            en <button type="button" id="hasta2" class="campo"></button>.
           </p>
         </form>
         <p class="detalle" id="detalle2"></p>

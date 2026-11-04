@@ -43,34 +43,63 @@ function prepararBoton(boton) {
 }
 
 // --- Mes y año -----------------------------------------------------------------
-// Grilla de meses con navegación por año.
-export function selectorMes(boton, { valor, min, max, etiqueta, alElegir }) {
+// Grilla de meses con navegación por año. Tocando el año se ven todos los años
+// para saltar directo. `atajos` es una lista opcional de {texto, valor} arriba de todo.
+export function selectorMes(boton, { valor, min, max, etiqueta, atajos = [], alElegir }) {
   prepararBoton(boton);
   const mostrar = () => {
     boton.textContent = nombre(valor);
     boton.setAttribute("aria-label", etiqueta + ": " + nombre(valor));
   };
+  const elegir = (p) => { valor = p; mostrar(); cerrarPanel(true); alElegir(p); };
 
-  function pintar(anio) {
+  function filaAtajos() {
+    const fila = el("div", { class: "panel__atajos" });
+    for (const a of atajos) {
+      const b = el("button", { type: "button", "aria-pressed": String(a.valor === valor) }, a.texto);
+      b.disabled = a.valor < min || a.valor > max;
+      b.addEventListener("click", () => elegir(a.valor));
+      fila.append(b);
+    }
+    return atajos.length ? [fila] : [];
+  }
+
+  function pintarMeses(anio) {
     const prev = el("button", { type: "button", class: "panel__flecha", "aria-label": "Año anterior" }, "‹");
     const next = el("button", { type: "button", class: "panel__flecha", "aria-label": "Año siguiente" }, "›");
+    const titulo = el("button", { type: "button", class: "panel__titulo-anio", "aria-label": "Elegir otro año, ahora " + anio }, String(anio));
     prev.disabled = anio <= anioDe(min);
     next.disabled = anio >= anioDe(max);
-    prev.addEventListener("click", () => { pintar(anio - 1); panel.querySelector(".panel__flecha").focus(); });
-    next.addEventListener("click", () => { pintar(anio + 1); panel.querySelectorAll(".panel__flecha")[1].focus(); });
+    prev.addEventListener("click", () => { pintarMeses(anio - 1); panel.querySelector(".panel__flecha").focus(); });
+    next.addEventListener("click", () => { pintarMeses(anio + 1); panel.querySelectorAll(".panel__flecha")[1].focus(); });
+    titulo.addEventListener("click", () => pintarAnios(anio));
 
     const grilla = el("div", { class: "panel__meses" });
     MESES.forEach((m, i) => {
       const p = periodo(anio, i + 1);
       const b = el("button", { type: "button", "aria-pressed": String(p === valor), "aria-label": nombre(p) }, m.slice(0, 3));
       b.disabled = p < min || p > max;
-      b.addEventListener("click", () => { valor = p; mostrar(); cerrarPanel(true); alElegir(p); });
+      b.addEventListener("click", () => elegir(p));
       grilla.append(b);
     });
-    panel.replaceChildren(el("div", { class: "panel__anio" }, prev, el("b", {}, String(anio)), next), grilla);
+    panel.replaceChildren(...filaAtajos(), el("div", { class: "panel__anio" }, prev, titulo, next), grilla);
   }
 
-  boton.addEventListener("click", () => abrirPanel(boton, etiqueta, () => pintar(anioDe(valor))));
+  function pintarAnios(actual) {
+    const grilla = el("div", { class: "panel__anios" });
+    for (let a = anioDe(min); a <= anioDe(max); a++) {
+      const b = el("button", { type: "button", "aria-pressed": String(a === actual) }, String(a));
+      b.addEventListener("click", () => {
+        pintarMeses(a);
+        panel.querySelector(".panel__meses button:not(:disabled)").focus();
+      });
+      grilla.append(b);
+    }
+    panel.replaceChildren(el("p", { class: "panel__titulo" }, "Elegí el año"), grilla);
+    grilla.querySelector('[aria-pressed="true"]').focus();
+  }
+
+  boton.addEventListener("click", () => abrirPanel(boton, etiqueta, () => pintarMeses(anioDe(valor))));
   mostrar();
 }
 

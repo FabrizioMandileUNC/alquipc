@@ -255,3 +255,13 @@ button.campo:hover { background: color-mix(in srgb, var(--resaltador) 18%, trans
 .panel__lista button + button { margin-top: 4px; }
 .panel__lista button:not([aria-pressed="true"]):hover { background: var(--panel-suave); }
 .panel__lista small { display: block; font-size: 13px; opacity: .75; font-weight: 400; margin-top: 2px; }
+
+.panel__titulo-anio { font-weight: 700 !important; font-size: 17px !important; padding: 6px 12px; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.panel__titulo-anio::after { content: ""; display: inline-block; margin-left: 8px; vertical-align: 3px; border: 5px solid transparent; border-top-color: currentColor; border-bottom: 0; }
+.panel__titulo-anio:hover { background: var(--panel-suave); }
+.panel__anios { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.panel__anios button { padding: 10px 0; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.panel__anios button:not([aria-pressed="true"]):hover { background: var(--panel-suave); }
+.panel__atajos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--panel-linea); }
+.panel__atajos button { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--panel-linea) !important; font-size: 14px !important; }
+.panel__atajos button:not([aria-pressed="true"]):hover { background: var(--panel-suave); }
