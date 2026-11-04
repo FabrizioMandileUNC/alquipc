@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alquipc, calculadora de alquiler por IPC</title>
+  <meta name="description" content="Calculá cuánto sube tu alquiler con el IPC oficial del INDEC.">
+  <meta property="og:title" content="Alquipc: ¿cuánto sube tu alquiler?">
+  <meta property="og:description" content="Escribís cuánto pagás y desde cuándo. Te decimos cuánto vas a pagar con el último IPC del INDEC.">
+  <meta name="theme-color" content="#1b3a8c">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b3a8c'/%3E%3Crect x='7' y='19' width='18' height='5' fill='%23ffe14d'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Encode+Sans:wdth,wght@75..125,400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="barra">
+    <div class="wrap barra__inner">
+      <a class="marca" href="#">alquipc</a>
+      <nav class="nav">
+        <a href="#inflacion">Inflación</a>
+        <a href="#pesos-de-hoy">Pesos de hoy</a>
+        <a href="#como">Cómo se calcula</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <h1>Calculá el aumento de tu alquiler con el IPC del INDEC.</h1>
+
+        <form id="form-alquiler" class="frase" autocomplete="off">
+          <p>
+            Pago <span class="campo">$<input id="monto" inputmode="numeric" placeholder="450.000" aria-label="Cuánto pagás hoy"></span> por mes
+            desde <select id="mes" class="campo" aria-label="Mes desde el que pagás ese monto"></select>
+            de <select id="anio" class="campo" aria-label="Año"></select>
+            y el contrato ajusta cada <select id="frecuencia" class="campo" aria-label="Cada cuántos meses ajusta">
+              <option value="2">2</option><option value="3" selected>3</option><option value="4">4</option>
+              <option value="6">6</option><option value="12">12</option>
+            </select> meses.
+          </p>
+        </form>
+
+        <div id="resultado" class="resultado" aria-live="polite"></div>
+
+        <p class="nota">
+          Se usa el IPC de <select id="rezago" class="campo campo--chico" aria-label="Desfasaje del índice">
+            <option value="2" selected>dos meses</option><option value="1">un mes</option>
+          </select> antes de cada ajuste, como dice la mayoría de los contratos.
+        </p>
+      </div>
+    </section>
+
+    <section class="bloque" id="inflacion">
+      <div class="wrap">
+        <h2>Inflación mes a mes</h2>
+        <p class="resumen" id="resumen-ipc"></p>
+        <div class="grafico">
+          <p class="grafico__lectura" id="lectura"></p>
+          <div class="grafico__barras" id="barras" role="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloque" id="pesos-de-hoy">
+      <div class="wrap">
+        <h2>Pesos de hoy</h2>
+        <p class="resumen">Para saber cuánto vale hoy un depósito de garantía, una deuda o un precio viejo.</p>
+        <form id="form-pesos" class="frase frase--chica" autocomplete="off">
+          <p>
+            <span class="campo">$<input id="monto2" inputmode="numeric" placeholder="100.000" aria-label="Monto"></span>
+            de <select id="mes2" class="campo" aria-label="Mes"></select>
+            de <select id="anio2" class="campo" aria-label="Año"></select>
+            son hoy <output id="resultado2" class="salida">…</output>
+          </p>
+        </form>
+        <p class="detalle" id="detalle2"></p>
+      </div>
+    </section>
+
+    <section class="bloque" id="como">
+      <div class="wrap columnas">
+        <div>
+          <h2>Cómo se calcula</h2>
+          <p class="resumen">Es una regla de tres con dos valores del índice. La podés verificar a mano con los datos del INDEC.</p>
+        </div>
+        <div>
+          <ol class="pasos">
+            <li>Se busca el IPC de dos meses antes de que empezó a regir tu monto, y el de dos meses antes del ajuste. Son dos meses porque el INDEC publica cada índice a mediados del mes siguiente.</li>
+            <li>Se divide el segundo por el primero. Eso es lo que subieron los precios en el período.</li>
+            <li>Se multiplica tu alquiler por ese número.</li>
+          </ol>
+          <p class="formula">nuevo alquiler = alquiler actual × IPC<sub>ajuste − 2</sub> ÷ IPC<sub>inicio − 2</sub></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloque" id="preguntas">
+      <div class="wrap columnas">
+        <h2>Preguntas</h2>
+        <div class="preguntas">
+          <details>
+            <summary>¿De dónde salen los datos?</summary>
+            <p>Del índice de precios al consumidor, nivel general, total nacional, que publica el INDEC. Los bajamos tal cual, sin redondear ni corregir.</p>
+          </details>
+          <details>
+            <summary>Mi contrato dice otra cosa.</summary>
+            <p>Desde fines de 2023 cada contrato puede pactar su propio índice. Si el tuyo usa el IPC de un mes antes, cambialo debajo de la calculadora. Si usa otro índice, como el ICL o Casa Propia, este cálculo no te sirve.</p>
+          </details>
+          <details>
+            <summary>¿Qué pasa si todavía no salió el dato?</summary>
+            <p>Te mostramos una estimación con el promedio de los últimos tres meses, y te decimos qué IPC falta para tener el número definitivo.</p>
+          </details>
+          <details>
+            <summary>Puse una fecha de hace años y me da varios ajustes.</summary>
+            <p>Si desde esa fecha ya pasaron varios ajustes, los aplicamos uno detrás de otro y te mostramos cuánto deberías estar pagando hoy.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="wrap">
+      <p>Datos del IPC del INDEC, tomados de <span id="fuente">la API oficial</span> el <span id="actualizado">—</span>.
+        Alquipc es una herramienta informativa: ante cualquier duda, lo que vale es tu contrato.</p>
+    </div>
+  </footer>
+
+  <script src="data/ipc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
