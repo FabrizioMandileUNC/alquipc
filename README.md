@@ -1,6 +1,7 @@
 # Alquipc
 
 Calculadora de ajuste de alquiler por IPC con datos oficiales del INDEC.
+Online en https://fabriziomandileunc.github.io/alquipc/
 
 ## Estructura
 
@@ -78,5 +79,7 @@ gh secret set INDEC_TOKEN
 
 ## Publicar
 
-Alcanza con subir la carpeta `web/` a GitHub Pages, Netlify o Cloudflare Pages y correr
-`actualizar_datos` cada vez que sale un IPC.
+El sitio está en **https://fabriziomandileunc.github.io/alquipc/** (GitHub Pages).
+
+`.github/workflows/publicar.yml` sube la carpeta `web/` cada vez que cambia algo en ella, y
+"Actualizar IPC" lo lanza cuando entra un dato nuevo. No hace falta hacer nada a mano.
